@@ -1300,6 +1300,13 @@ object SQLConf {
       .intConf
       .createWithDefault(Int.MaxValue)
 
+  val RI_JOIN_ELIMINATION =
+    buildConf("spark.sql.riJoinElimination")
+      .internal()
+      .doc("Eliminates inner joins based on Referential Integrity constraints. ")
+      .booleanConf
+      .createWithDefault(false)
+
   object Deprecated {
     val MAPRED_REDUCE_TASKS = "mapred.reduce.tasks"
   }
@@ -1473,6 +1480,8 @@ class SQLConf extends Serializable with Logging {
   def sortBeforeRepartition: Boolean = getConf(SORT_BEFORE_REPARTITION)
 
   def topKSortFallbackThreshold: Int = getConf(TOP_K_SORT_FALLBACK_THRESHOLD)
+
+  def riJoinElimination: Boolean = getConf(SQLConf.RI_JOIN_ELIMINATION)
 
   /**
    * Returns the [[Resolver]] for the current configuration, which can be used to determine if two
