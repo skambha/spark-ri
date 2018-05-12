@@ -156,6 +156,10 @@ case class AlterTableRenameCommand(
     } else {
       val table = catalog.getTableMetadata(oldName)
       DDLUtils.verifyAlterTableType(catalog, table, isView)
+      if (table.tableConstraints.isDefined) {
+        throw new AnalysisException("The table has referential integrity constraints defined." +
+          " Drop the constraints and retry the command")
+      }
       // If an exception is thrown here we can just assume the table is uncached;
       // this can happen with Hive tables when the underlying catalog is in-memory.
       val wasCached = Try(sparkSession.catalog.isCached(oldName.unquotedString)).getOrElse(false)

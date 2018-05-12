@@ -287,6 +287,49 @@ class HiveDDLSuite
     fs.exists(filesystemPath)
   }
 
+  test("rename table - constraint") {
+    withTable("parent1", "child") {
+      sql("CREATE TABLE parent1(c1 int, c2 int, c3 string) using parquet")
+      sql("ALTER TABLE parent1 ADD CONSTRAINT pk1 primary key (c1) novalidate rely")
+      sql("CREATE TABLE child(c1 int, c2 int, c3 string) using parquet")
+      sql("ALTER TABLE child ADD CONSTRAINT fk1 foreign key (c1)" +
+        " references parent1(c1) novalidate rely")
+      val e = intercept[AnalysisException] {
+        sql("ALTER TABLE parent1 RENAME TO parent2")
+      }.getMessage
+      assert(e.contains("The table has referential integrity constraints defined." +
+        " Drop the constraints and retry the command"))
+
+      val e1 = intercept[AnalysisException] {
+        sql("ALTER TABLE child RENAME TO child2")
+      }.getMessage
+      assert(e1.contains("The table has referential integrity constraints defined." +
+        " Drop the constraints and retry the command"))
+
+    }
+  }
+
+  test("change col - constraint") {
+    withTable("parent1", "child") {
+      sql("CREATE TABLE parent1(c1 int, c2 int, c3 string) using parquet")
+      sql("ALTER TABLE parent1 ADD CONSTRAINT pk1 primary key (c1) novalidate rely")
+      sql("CREATE TABLE child(c1 int, c2 int, c3 string) using parquet")
+      sql("ALTER TABLE child ADD CONSTRAINT fk1 foreign key (c1)" +
+        " references parent1(c1) novalidate rely")
+      val e = intercept[AnalysisException] {
+        sql("ALTER TABLE parent1 CHANGE COLUMN c1 newc1 int")
+      }.getMessage
+      assert(e.contains("The table has referential integrity constraints defined." +
+        " Drop the constraints and retry the command"))
+
+      val e1 = intercept[AnalysisException] {
+        sql("ALTER TABLE child CHANGE COLUMN c1 newc1 int")
+      }.getMessage
+      assert(e1.contains("The table has referential integrity constraints defined." +
+        " Drop the constraints and retry the command"))
+
+    }
+  }
   test("drop tables") {
     withTable("tab1") {
       val tabName = "tab1"
