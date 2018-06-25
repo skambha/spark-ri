@@ -95,6 +95,18 @@ object TableConstraints {
     val fks = fksJson.map(fk => ForeignKey.fromJson(parse(fk)))
     TableConstraints(pk, fks)
   }
+
+  def isColInConstraint(
+      col: String,
+      constraints: TableConstraints,
+      resolver: Resolver): Boolean = {
+    def colExists(keyCols: Seq[String]): Boolean = {
+      keyCols.exists(k => resolver(k, col))
+    }
+
+    val inPK = constraints.primaryKey.map(pk => colExists(pk.keyColumnNames)).getOrElse(false)
+    inPK || constraints.foreignKeys.exists(fk => colExists(fk.keyColumnNames))
+  }
 }
 
 /**
@@ -168,6 +180,7 @@ object TableConstraint {
       case fk: ForeignKey => ForeignKey.verifyAndBuildForeignKey(fk, table, catalog, resolver)
     }
   }
+
 }
 
 /**

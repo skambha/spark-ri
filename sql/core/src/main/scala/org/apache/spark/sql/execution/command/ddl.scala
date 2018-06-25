@@ -314,8 +314,10 @@ case class AlterTableChangeColumnCommand(
     val resolver = sparkSession.sessionState.conf.resolver
     DDLUtils.verifyAlterTableType(catalog, table, isView = false)
     if (table.tableConstraints.isDefined) {
-      throw new AnalysisException("The table has referential integrity constraints defined." +
-        " Drop the constraints and retry the command")
+      if (TableConstraints.isColInConstraint(columnName, table.tableConstraints.get, resolver)) {
+        throw new AnalysisException("The table has referential integrity constraints defined." +
+          " Drop the constraints and retry the command")
+      }
     }
     // Find the origin column from dataSchema by column name.
     val originColumn = findColumnByName(table.dataSchema, columnName, resolver)

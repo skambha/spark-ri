@@ -294,12 +294,15 @@ class HiveDDLSuite
       sql("CREATE TABLE child(c1 int, c2 int, c3 string) using parquet")
       sql("ALTER TABLE child ADD CONSTRAINT fk1 foreign key (c1)" +
         " references parent1(c1) novalidate rely")
+
+      // rename table with pk
       val e = intercept[AnalysisException] {
         sql("ALTER TABLE parent1 RENAME TO parent2")
       }.getMessage
       assert(e.contains("The table has referential integrity constraints defined." +
         " Drop the constraints and retry the command"))
 
+      // rename table with fk
       val e1 = intercept[AnalysisException] {
         sql("ALTER TABLE child RENAME TO child2")
       }.getMessage
@@ -310,26 +313,51 @@ class HiveDDLSuite
   }
 
   test("change col - constraint") {
-    withTable("parent1", "child") {
-      sql("CREATE TABLE parent1(c1 int, c2 int, c3 string) using parquet")
-      sql("ALTER TABLE parent1 ADD CONSTRAINT pk1 primary key (c1) novalidate rely")
-      sql("CREATE TABLE child(c1 int, c2 int, c3 string) using parquet")
-      sql("ALTER TABLE child ADD CONSTRAINT fk1 foreign key (c1)" +
-        " references parent1(c1) novalidate rely")
+    withTable("parent1","parent2", "child") {
+      sql("CREATE TABLE parent1(c1 INT, c2 INT, c3 INT) USING PARQUET")
+      sql("ALTER TABLE parent1 ADD CONSTRAINT pk1 PRIMARY KEY (c1) NOVALIDATE RELY")
+      sql("CREATE TABLE child(c1 int, c2 int, c3 INT) USING PARQUET")
+      sql("ALTER TABLE child ADD CONSTRAINT fk1 FOREIGN KEY (c1)" +
+        " REFERENCES parent1(c1) NOVALIDATE RELY")
+
+      // change column that is in pk
       val e = intercept[AnalysisException] {
         sql("ALTER TABLE parent1 CHANGE COLUMN c1 newc1 int")
       }.getMessage
       assert(e.contains("The table has referential integrity constraints defined." +
         " Drop the constraints and retry the command"))
 
+      // change column that is in fk
       val e1 = intercept[AnalysisException] {
-        sql("ALTER TABLE child CHANGE COLUMN c1 newc1 int")
+        sql("ALTER TABLE child CHANGE COLUMN c1 newc1 INT")
       }.getMessage
       assert(e1.contains("The table has referential integrity constraints defined." +
         " Drop the constraints and retry the command"))
 
+      // change column but not in fk or pk
+      sql("ALTER TABLE parent1 CHANGE COLUMN c2 c2 INT COMMENT 'test'")
+      sql("ALTER TABLE child CHANGE COLUMN c2 c2 INT COMMENT 'test'")
+
+      sql("CREATE TABLE parent2(c1 INT, c2 INT, c3 INT, c4 INT) USING PARQUET")
+      sql("ALTER TABLE parent2 ADD CONSTRAINT pk1 PRIMARY KEY (c1, c2) NOVALIDATE RELY")
+      sql("ALTER TABLE parent2 ADD CONSTRAINT fk1 FOREIGN KEY (c3, c4) REFERENCES parent2(c1, c2)")
+
+      // change column is in fk composite key
+      val e2 = intercept[AnalysisException] {
+        sql("ALTER TABLE parent2 CHANGE COLUMN c3 c3 INT COMMENT 'testc3'")
+      }.getMessage
+      assert(e2.contains("The table has referential integrity constraints defined." +
+        " Drop the constraints and retry the command"))
+
+      // change column is in pk composite key
+      val e3 = intercept[AnalysisException] {
+        sql("ALTER TABLE parent2 CHANGE COLUMN c1 c1 INT COMMENT 'testc1'")
+      }.getMessage
+      assert(e2.contains("The table has referential integrity constraints defined." +
+        " Drop the constraints and retry the command"))
     }
   }
+
   test("drop tables") {
     withTable("tab1") {
       val tabName = "tab1"
